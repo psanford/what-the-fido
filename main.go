@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"flag"
@@ -12,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/inconshreveable/log15"
@@ -35,13 +37,7 @@ func main() {
 	logHandler := log15.StreamHandler(os.Stdout, log15.LogfmtFormat())
 	log15.Root().SetHandler(logHandler)
 
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", indexHandler)
-	mux.HandleFunc("/webauthn/registration/start", startRegistrationHanler)
-	mux.HandleFunc("/webauthn/registration/finish", finishRegistrationHanler)
-
-	handler := logmiddleware.New(mux)
+	handler := logmiddleware.New(serveMux())
 
 	switch *cliMode {
 	case "http":
@@ -50,6 +46,16 @@ func main() {
 	default:
 		lambda.Start(lambdahttpv2.NewLambdaHandler(handler))
 	}
+}
+
+func serveMux() http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", indexHandler)
+	mux.HandleFunc("/webauthn/registration/start", startRegistrationHanler)
+	mux.HandleFunc("/webauthn/registration/finish", finishRegistrationHanler)
+
+	return mux
 }
 
 func indexHandler(w http.ResponseWriter, req *http.Request) {
@@ -117,16 +123,59 @@ func finishRegistrationHanler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	certBytesI := parsed.Response.Attestation.AttStmt["x5c"]
+	var certBytes []byte
 
-	if certBytesI == nil {
-		http.Error(w, "No attestation cert provided", 500)
-		return
+	if parsed.Response.Attestation.Fmt == "android-safetynet" {
+		jwtI := parsed.Response.Attestation.AttStmt["response"]
+		if jwtI == nil {
+			j, _ := json.Marshal(parsed)
+			lgr.Error("no_attestation_cert_found_for_android-safetynet", "err", err, "parsed", string(j))
+			http.Error(w, "No attestation cert found", 500)
+			return
+		}
+
+		jwtTxt := jwtI.([]byte)
+
+		parts := strings.Split(string(jwtTxt), ".")
+		jwt, err := base64.StdEncoding.DecodeString(parts[0])
+		if err != nil {
+			lgr.Error("base64_decode_0_err", "err", err, "jwt_txt", string(parts[0]))
+			http.Error(w, "attestation decode err", 500)
+			return
+		}
+
+		var attr jwtAttr
+		err = json.Unmarshal(jwt, &attr)
+		if err != nil {
+			lgr.Error("decode_json_jwt_err", "err", err, "jwt_txt", string(parts[0]))
+			http.Error(w, "attestation decode err", 500)
+			return
+		}
+
+		certBytes, err = base64.StdEncoding.DecodeString(attr.X5c[0])
+		if err != nil {
+			lgr.Error("base64_decode_1_err", "err", err, "x5c", attr.X5c)
+			http.Error(w, "attestation decode err", 500)
+			return
+		}
+	} else {
+		if parsed.Response.Attestation.Fmt != "fido-u2f" {
+			lgr.Info("unknown_fmt", "fmt", parsed.Response.Attestation.Fmt, "msg", "trying_u2f_anyways")
+		}
+
+		certBytesI := parsed.Response.Attestation.AttStmt["x5c"]
+
+		if certBytesI == nil {
+			j, _ := json.Marshal(parsed)
+			lgr.Error("no_attestation_cert_provided", "err", err, "parsed", string(j))
+			http.Error(w, "No attestation cert provided", 500)
+			return
+		}
+
+		certBytesISlice := certBytesI.([]interface{})
+
+		certBytes = certBytesISlice[0].([]byte)
 	}
-
-	certBytesISlice := certBytesI.([]interface{})
-
-	certBytes := certBytesISlice[0].([]byte)
 
 	var pemOut bytes.Buffer
 	err = pem.Encode(&pemOut, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
@@ -143,7 +192,7 @@ func finishRegistrationHanler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var exts []ExtInfo
+	exts := make([]ExtInfo, 0)
 
 	for _, ext := range c.Extensions {
 		for _, knownOid := range knownOids {
@@ -245,4 +294,9 @@ var yubikeyAAGUIDs = map[string]string{
 	"ee882879721c491397753dfcce97072a": "YubiKey 5(C|USBA) (Nano);fw5.2, 5.4",
 	"f8a011f38c0a4d15800617111f9edc7d": "Security Key By Yubico;fw5.1",
 	"fa2b99dc9e3942578f924a30d23c4118": "YubiKey 5 NFC;fw5.1",
+}
+
+type jwtAttr struct {
+	Alg string   `json:"alg"`
+	X5c []string `json:"x5c"`
 }

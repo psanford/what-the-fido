@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/aws/aws-lambda-go v1.28.0
+	github.com/google/go-cmp v0.5.7
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac
 	github.com/koesie10/webauthn v0.3.4
 	github.com/psanford/fido-ident v0.0.0-20220129000629-eb9b0980bf57
