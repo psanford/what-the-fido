@@ -1,0 +1,147 @@
+<html>
+  <head>
+	  <title>What The FIDO!?</title>
+	  <style>
+		 .hide {
+			   display: none;
+		 }
+	  </style>
+
+	  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  </head>
+  <body>
+    <div class="container mt-4">
+	    <h1>What The FIDO!?</h1>
+
+	    <p>Identify your FIDO token based on its Attestation Certificate.</p>
+      <p>This site will show you the Attestation Certificate for your FIDO token. This Attestation is _not_ unique to your single token. It should be shared with at least 100,000 other devices. It should identify the manufacturer of the device and potentially model or family of models. </p>
+      <p>In order to get the certificate, you must say "Yes" when your browser prompt for "Allow this site to see your security key?"</p>
+
+			<p class="hide lead" id="registerLoading">Identifying... Please tap your authenticator.</p>
+
+
+			<form method="post" id="registerForm">
+				<button type="submit" class="btn btn-success mt-3">Identify</button>
+			</form>
+
+      <div class="hide lead" id="reg_resp">
+        <p>Subject:</p>
+        <ul id=cert_subject></ul>
+        <p>Extensions:</p>
+        <ul id=cert_oids></ul>
+        <p>Cert details:</p>
+        <pre id=cert_text></pre>
+        <p>Attestation Cert:</p>
+        <pre id=cert></pre>
+      </div>
+
+
+    <script type="text/javascript">
+     // This is a modification of the example class, where the URLs have been changed to include the name.
+     class WebAuthn {
+	       // Decode a base64 string into a Uint8Array.
+	       static _decodeBuffer(value) {
+		         return Uint8Array.from(atob(value), c => c.charCodeAt(0));
+	       }
+
+	       // Encode an ArrayBuffer into a base64 string.
+	       static _encodeBuffer(value) {
+		         return btoa(new Uint8Array(value).reduce((s, byte) => s + String.fromCharCode(byte), ''));
+	       }
+
+	       // Checks whether the status returned matches the status given.
+	       static _checkStatus(status) {
+		         return res => {
+			           if (res.status === status) {
+				             return res;
+			           }
+			           throw new Error(res.statusText);
+		         };
+	       }
+
+	       register() {
+		         return fetch('/webauthn/registration/start', {
+				         method: 'POST'
+			       })
+			           .then(WebAuthn._checkStatus(200))
+			           .then(res => res.json())
+			           .then(res => {
+				             res.publicKey.challenge = WebAuthn._decodeBuffer(res.publicKey.challenge);
+				             res.publicKey.user.id = WebAuthn._decodeBuffer(res.publicKey.user.id);
+				             if (res.publicKey.excludeCredentials) {
+					               for (var i = 0; i < res.publicKey.excludeCredentials.length; i++) {
+						                 res.publicKey.excludeCredentials[i].id = WebAuthn._decodeBuffer(res.publicKey.excludeCredentials[i].id);
+					               }
+				             }
+				             return res;
+			           })
+			           .then(res => navigator.credentials.create(res))
+			           .then(credential => {
+				             return fetch('/webauthn/registration/finish', {
+					               method: 'POST',
+					               headers: {
+						                 'Accept': 'application/json',
+						                 'Content-Type': 'application/json'
+					               },
+					               body: JSON.stringify({
+						                 id: credential.id,
+						                 rawId: WebAuthn._encodeBuffer(credential.rawId),
+						                 response: {
+							                   attestationObject: WebAuthn._encodeBuffer(credential.response.attestationObject),
+							                   clientDataJSON: WebAuthn._encodeBuffer(credential.response.clientDataJSON)
+						                 },
+						                 type: credential.type
+					               }),
+				             })
+			           })
+			           .then(WebAuthn._checkStatus(200))
+			           .then(res => res.json())
+			           .then(res => {
+                     document.getElementById("reg_resp").classList.remove("hide");
+                     document.getElementById("cert").innerHTML = res.cert_pem;
+                     document.getElementById("cert_text").innerHTML = res.cert_info;
+                     document.getElementById("cert_subject").innerHTML = res.subject;
+                     var ul =document.getElementById("cert_oids");
+                     ul.innerHTML = "";
+                     for (var i = 0; i < res.extensions.length; i++) {
+                         var ext = res.extensions[i];
+                         var li = document.createElement('li');
+                         var txt = ext.oid + " " + ext.name;
+                         if (ext.value != "") {
+                           txt = txt + "<br/><ul><li>" + ext.value + "</li></ul>";
+                         }
+                         li.innerHTML = txt;
+                         ul.appendChild(li);
+
+                     }
+                 })
+	       }
+
+     }
+
+     let registerPending = false;
+     let loginPending = false;
+
+     let w = new WebAuthn();
+
+     document.getElementById("registerForm").onsubmit = function(e) {
+	       e.preventDefault();
+
+	       if (registerPending) return;
+	       registerPending = true;
+
+	       document.getElementById("registerLoading").classList.remove("hide");
+
+	       w.register()
+			    .catch(err => {
+				      console.error(err)
+				      alert('Failed to register: ' + err);
+			    })
+			    .then(() => {
+				      registerPending = false;
+				      document.getElementById("registerLoading").classList.add("hide");
+			    });
+     };
+    </script>
+  </body>
+</html>
