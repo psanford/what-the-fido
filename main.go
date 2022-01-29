@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"flag"
@@ -87,6 +89,13 @@ func startRegistrationHanler(w http.ResponseWriter, req *http.Request) {
 				},
 			},
 			Timeout: 30 * 1000,
+			User: protocol.PublicKeyCredentialUserEntity{
+				ID: randBytes(20),
+				PublicKeyCredentialEntity: protocol.PublicKeyCredentialEntity{
+					Name: randHex(10),
+				},
+				DisplayName: randHex(10),
+			},
 			// Ask for attestation cert
 			Attestation: protocol.AttestationConveyancePreferenceDirect,
 			AuthenticatorSelection: protocol.AuthenticatorSelectionCriteria{
@@ -299,4 +308,18 @@ var yubikeyAAGUIDs = map[string]string{
 type jwtAttr struct {
 	Alg string   `json:"alg"`
 	X5c []string `json:"x5c"`
+}
+
+func randBytes(size int) []byte {
+	b := make([]byte, size)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func randHex(size int) string {
+	b := randBytes(size)
+	return hex.EncodeToString(b)
 }
