@@ -92,6 +92,39 @@ func TestAndroid(t *testing.T) {
 	}
 }
 
+func TestAndroid2(t *testing.T) {
+	ts := httptest.NewServer(serveMux())
+
+	defer ts.Close()
+
+	androidReq, err := ioutil.ReadFile("testdata/android-req-2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reqBody := bytes.NewBuffer(androidReq)
+
+	resp, err := http.Post(ts.URL+"/webauthn/registration/finish", "application/json", reqBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var regResp RegResponse
+	err = json.NewDecoder(resp.Body).Decode(&regResp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if regResp.CertPEM != androidCert2 {
+		t.Fatalf("expect android cert %s but got %s", androidCert2, regResp.CertPEM)
+	}
+
+	expectExts := []ExtInfo{}
+	if !cmp.Equal(expectExts, regResp.Exts) {
+		t.Fatalf(cmp.Diff(expectExts, regResp.Exts))
+	}
+}
+
 var yubikeyCert = `-----BEGIN CERTIFICATE-----
 MIICvjCCAaagAwIBAgIEXdBO4TANBgkqhkiG9w0BAQsFADAuMSwwKgYDVQQDEyNZ
 dWJpY28gVTJGIFJvb3QgQ0EgU2VyaWFsIDQ1NzIwMDYzMTAgFw0xNDA4MDEwMDAw
@@ -141,5 +174,39 @@ DlY6nOpwmCytNtBau0JhKsELgcdIooZdJ4lqdVJQquyaFzh6JK59WslIrBrPEGul
 3ND+8mB9muZiHPrJpcipgh867VQFKehgcUcGDd9hIqfbx4smv5CbKJokc6/hX2EB
 Qq2wSarDIU2vqjEXr9Kx2gdQjQJ6/QSTTYowcfwj+KEeHFVTYYp1hj8N8s3aj3py
 IPlFFbmUNgcDiFCFeaEbP5fyZBbx4gTH0POcAArfvGx3v74=
+-----END CERTIFICATE-----
+`
+
+var androidCert2 = `-----BEGIN CERTIFICATE-----
+MIIFbzCCBFegAwIBAgIRAP4UU7By5wpREFFKwIqks44wDQYJKoZIhvcNAQELBQAw
+RjELMAkGA1UEBhMCVVMxIjAgBgNVBAoTGUdvb2dsZSBUcnVzdCBTZXJ2aWNlcyBM
+TEMxEzARBgNVBAMTCkdUUyBDQSAxRDQwHhcNMjIwNTE5MTIwMzI0WhcNMjIwODE3
+MTIwMzIzWjAdMRswGQYDVQQDExJhdHRlc3QuYW5kcm9pZC5jb20wggEiMA0GCSqG
+SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDgn3Xmw1zq9y3yrAZAxTs1ztTFoXaK7DbJ
+sejbWZx+wzkuYa9r4hg25JAGVq7z16CNtsW9XvNpc5HcLovn/oS/kiPsW+hOKhrP
+GPGBxK/OQHkKyHUcej50FtNBLOG5V7Vsw8VjxF5COVMCebvwwYJqx6ghGoKdk2cr
+ePS2hb+/Jp7SfPeZpZfyPYAbHVzS4W2ZLIj9CgsKOkvKhuXeVyv1+py9l3SWjsmi
+qQOvmEs+n+pqxAj+e1DbOUFjzX5Zf3rIYFubua861GwKSwcyVO4WfTd9QwzXYH9H
+VMkVWJaQs+nKEIN8//7vnLwBoDsV8c56GfwSgVxyDg5mwowRAwATAgMBAAGjggJ/
+MIICezAOBgNVHQ8BAf8EBAMCBaAwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDAYDVR0T
+AQH/BAIwADAdBgNVHQ4EFgQU4arkLvXyL3etEbDTwBjGX8qHMGUwHwYDVR0jBBgw
+FoAUJeIYDrJXkZQq5dRdhpCD3lOzuJIwewYIKwYBBQUHAQEEbzBtMDgGCCsGAQUF
+BzABhixodHRwOi8vb2NzcC5wa2kuZ29vZy9zL2d0czFkNGludC9vUldMQTJWOGxk
+YzAxBggrBgEFBQcwAoYlaHR0cDovL3BraS5nb29nL3JlcG8vY2VydHMvZ3RzMWQ0
+LmRlcjAdBgNVHREEFjAUghJhdHRlc3QuYW5kcm9pZC5jb20wIQYDVR0gBBowGDAI
+BgZngQwBAgEwDAYKKwYBBAHWeQIFAzA/BgNVHR8EODA2MDSgMqAwhi5odHRwOi8v
+Y3Jscy5wa2kuZ29vZy9ndHMxZDRpbnQvX0ZQcXFJSGdYNjguY3JsMIIBBAYKKwYB
+BAHWeQIEAgSB9QSB8gDwAHYARqVV63X6kSAwtaKJafTzfREsQXS+/Um4havy/HD+
+bUcAAAGA3Gp6vAAABAMARzBFAiBSj7BNIfmjbvndlwJ5yYE8OkX8SkzelQk5f4RD
+WdqxpwIhAPcQi72oNSOHl3lik27iNS+5rmWkY5w5WQFjOJuf5m2sAHYAQcjKsd8i
+RkoQxqE6CUKHXk4xixsD6+tLx2jwkGKWBvYAAAGA3Gp60gAABAMARzBFAiAlnC8C
+6ZzjgvTBWzNv5AsrAraE8U1lCb/m2Rgg5JgcDAIhAOB3kTEmnAucyr1xajEn57EP
+gcPg0DywXgkXM3d1UdXpMA0GCSqGSIb3DQEBCwUAA4IBAQB41MX1DI+a9AWPNcir
+C34LasF2hxldXXI5UD1fcnIlarnzmLsTurIF7m0j3ULvwU2+g5jy+xy6QCORuMFv
+KNPd2NVGUvOytj/nYr7Oa9tyAyRR79ZgOooEgRWVrWYzG2/JVXB3itVzBCZyClPA
+KXnSXQQsjOJ3HhiLjUHfaYxPYtCOwKGufxhVw/ptzlLB4HQgqIYvT8mJ84mZ8dhA
+9BJ6qQHPVuI3CuSR5TLdCICozDAaTsQg4g6H1X3WwA6scmbL/lAv4gInKS8TKwpJ
+y9XN3wv3ixtYeZpH3HvVYbtbbfLKJ5YONeoIvbCChGz9fk4GmPLf3kI7Sq3g/V7I
+rwO1
 -----END CERTIFICATE-----
 `

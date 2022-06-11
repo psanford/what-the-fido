@@ -146,7 +146,7 @@ func finishRegistrationHanler(w http.ResponseWriter, req *http.Request) {
 		jwtTxt := jwtI.([]byte)
 
 		parts := strings.Split(string(jwtTxt), ".")
-		jwt, err := base64.StdEncoding.DecodeString(parts[0])
+		jwt, err := jwtDecodeSegment(parts[0])
 		if err != nil {
 			lgr.Error("base64_decode_0_err", "err", err, "jwt_txt", string(parts[0]))
 			http.Error(w, "attestation decode err", 500)
@@ -322,4 +322,13 @@ func randBytes(size int) []byte {
 func randHex(size int) string {
 	b := randBytes(size)
 	return hex.EncodeToString(b)
+}
+
+// jwt specific base64 decode
+func jwtDecodeSegment(seg string) ([]byte, error) {
+	if l := len(seg) % 4; l > 0 {
+		seg += strings.Repeat("=", 4-l)
+	}
+
+	return base64.URLEncoding.DecodeString(seg)
 }
