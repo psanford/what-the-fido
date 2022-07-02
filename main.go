@@ -29,8 +29,8 @@ var (
 	addr    = flag.String("listen-addr", "127.0.0.1:1234", "Host/Port to listen on")
 	cliMode = flag.String("mode", "", "execution mode: http|lambda")
 
-	relyingPartyID   = flag.String("relying-party-id", "what-the-fido.sanford.io", "Webautn relyingPartyID")
-	relyingPartyName = flag.String("relying-party-name", "what-the-fido.sanford.io", "Webautn relyingPartyName")
+	relyingPartyID   = flag.String("relying-party-id", "what-the-fido.sanford.io", "Webauthn relyingPartyID")
+	relyingPartyName = flag.String("relying-party-name", "what-the-fido.sanford.io", "Webauthn relyingPartyName")
 )
 
 func main() {
