@@ -134,12 +134,16 @@ func finishRegistrationHanler(w http.ResponseWriter, req *http.Request) {
 
 	var certBytes []byte
 
-	if parsed.Response.Attestation.Fmt == "android-safetynet" {
+	if parsed.Response.Attestation.Fmt == "none" {
+		lgr.Error("attestation_fmt_none")
+		http.Error(w, "No attestation cert found, fmt:none", 500)
+		return
+	} else if parsed.Response.Attestation.Fmt == "android-safetynet" {
 		jwtI := parsed.Response.Attestation.AttStmt["response"]
 		if jwtI == nil {
 			j, _ := json.Marshal(parsed)
 			lgr.Error("no_attestation_cert_found_for_android-safetynet", "err", err, "parsed", string(j))
-			http.Error(w, "No attestation cert found", 500)
+			http.Error(w, "No attestation cert found, fmt:android-safetynet", 500)
 			return
 		}
 
