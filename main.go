@@ -294,7 +294,7 @@ var knownOids = []OidMatch{
 // https://support.yubico.com/hc/en-us/articles/360016648959-YubiKey-Hardware-FIDO2-AAGUIDs
 // https://github.com/Yubico/developers.yubico.com/blob/master/static/U2F/yubico-metadata.json
 var yubikeyAAGUIDs = map[string]string{
-	"149a20218ef6413396b881f8d5b7f1f5": "Security Key NFC;fw5.2",
+	"149a20218ef6413396b881f8d5b7f1f5": "Security Key NFC;fw5.2, 5.4",
 	"2fc0579f811347eab116bb5a8db9202a": "YubiKey 5 NFC|YubiKey 5C NFC;fw5.2, 5.4",
 	"6d44ba9bf6ec2e49b9300c8fe920cb73": "Security Key NFC;fw5.1",
 	"73bb0cd4e50249b89c6fb59445bf720b": "YubiKey 5(C) (Nano) FIPS;fw5.4",
@@ -307,6 +307,8 @@ var yubikeyAAGUIDs = map[string]string{
 	"ee882879721c491397753dfcce97072a": "YubiKey 5(C|USBA) (Nano);fw5.2, 5.4",
 	"f8a011f38c0a4d15800617111f9edc7d": "Security Key By Yubico;fw5.1",
 	"fa2b99dc9e3942578f924a30d23c4118": "YubiKey 5 NFC;fw5.1",
+	"0bb43545fd2c418587ddfeb0b2916ace": "Security Key NFC - EE USB(A|C);fw5.4",
+	"a4e9fc6d4cbe4758b8ba37598bb5bbaa": "Security Key NFC Black USB(A|C);fw5.4",
 }
 
 type jwtAttr struct {
